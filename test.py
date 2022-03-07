@@ -2,13 +2,46 @@ import requests
 from datetime import datetime, timedelta
 import sqlite3
 from time import sleep
+from dotenv import dotenv_values
 
 
 interesting_classes = ['BUC: Lower Body Strength', 'BUC: Olympic Weightlifting', 'BUC: Olympic Weightlifting - Advanced']
 time_filter = 14
 day_filter = [0]
 saved_classes = {}
+# EF: 718
+# BUC: 952
+env = dotenv_values('.env')
 
+def login(email=env['BRUCE_EMAIL'], password=env['BRUCE_PASS']):
+    url = "https://api.bruce.app/v32/session"
+
+    data = {
+    "email": email,
+    "password": password
+    }
+
+    response = requests.request("POST", url, json=data)
+
+    assert response.ok, print('Error in login', response.status_code, response.text)
+
+    return response.json()['session']['access_token']
+
+def book(class_id, token):
+    url = "https://api.bruce.app/v32/booking"
+
+    data = {
+        "class_id": class_id,
+        "include_user": 'false',
+        "include_user_booking_limits": 'false'
+    }
+    header = {'x-access-token': token}
+
+    response = requests.request("POST", url, json=data, headers=header)
+
+    assert response.ok, print('Error in login', response.status_code, response.text)
+
+    return response.json()['booking']
 
 def get_classes(studio_id = '952'):
     url = "https://api.bruce.app/v32/class"
@@ -28,7 +61,7 @@ def process_classes(class_list,saved_classes):
         try:
             assert klass['id'] not in saved_classes
             assert klass['title'] in interesting_classes
-            assert klass['price'] is None
+            #assert klass['price'] is None
             assert klass['available_spots'] > 0
             assert klass['tier_level'] <= 2
             assert klass['deleted'] is False
