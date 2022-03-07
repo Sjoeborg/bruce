@@ -39,9 +39,9 @@ def book(class_id, token):
 
     response = requests.request("POST", url, json=data, headers=header)
 
-    assert response.ok, print('Error in login', response.status_code, response.text)
+    #assert response.ok, print('Error in login', response.status_code, response.text)
 
-    return response.json()['booking']
+    return response.json()#['booking']
 
 def get_classes(studio_id = '952'):
     url = "https://api.bruce.app/v32/class"
@@ -149,3 +149,8 @@ if __name__ == '__main__':
 
             print(get_db())
         sleep(60)
+
+        for klass in saved_classes:
+            print(klass)
+            token = login()
+            print(book(klass, token))
