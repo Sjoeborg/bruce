@@ -1,8 +1,9 @@
 import requests
 from datetime import datetime, timedelta
 import sqlite3
-from time import sleep
+from time import sleep, time
 from dotenv import dotenv_values
+import smtplib
 
 
 interesting_classes = ['BUC: Lower Body Strength', 'BUC: Olympic Weightlifting', 'BUC: Olympic Weightlifting - Advanced']
@@ -23,7 +24,7 @@ def login(email=env['BRUCE_EMAIL'], password=env['BRUCE_PASS']):
 
     response = requests.request("POST", url, json=data)
 
-    assert response.ok, print('Error in login', response.status_code, response.text)
+    assert response.ok, print(f'{datetime.now.strftime("%H:%m")} Error in login', response.status_code, response.text)
 
     return response.json()['session']['access_token']
 
@@ -41,12 +42,12 @@ def book(class_id, token):
 
     #assert response.ok, print('Error in login', response.status_code, response.text)
 
-    return response.json()#['booking']
+    return response
 
 def get_classes(studio_id = '952'):
     url = "https://api.bruce.app/v32/class"
 
-    data = {"studio_id":studio_id,"start_time_after":datetime.strftime(datetime.now(),'%Y-%m-%dT00:00:00Z')}
+    data = {"studio_id":studio_id,"start_time_after":datetime.now().strftime('%Y-%m-%dT00:00:00Z')}
 
     response = requests.request("GET", url, params=data)
 
@@ -75,9 +76,9 @@ def process_classes(class_list,saved_classes):
             if len(day_filter) > 0:
                 assert start_time.day not in day_filter
             
-            saved_classes[klass['id']] = {'created_at': datetime.strftime(created_at, '%Y-%m-%d %X'),
+            saved_classes[klass['id']] = {'created_at': created_at.strftime('%Y-%m-%d %X'),
                                 'title': klass['title'],
-                                'start_time': datetime.strftime(start_time, '%A, %d %b at %H:%M'),
+                                'start_time': start_time.strftime('%A, %d %b at %H:%M'),
                                 'saved': False}
             new_class = True
         except AssertionError:
@@ -134,6 +135,13 @@ def get_db():
 
     return result
 
+def mail(body):
+    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server.ehlo()
+    server.login('martin@sjoborg.org', env['EMAIL_PASS'])
+    server.sendmail('martin@sjoborg.org', 'martin@sjoborg.org', body)
+    server.close()
+
 
 if __name__ == '__main__':
     create_db()
@@ -153,4 +161,8 @@ if __name__ == '__main__':
         for klass in saved_classes:
             print(klass)
             token = login()
-            print(book(klass, token))
+            response = book(klass, token)
+            print(datetime.now().strftime('%H:%m')+': ', response.json())
+            if response.ok():
+                mail(response.json())
+            
