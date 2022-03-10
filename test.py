@@ -6,15 +6,14 @@ from dotenv import dotenv_values
 import smtplib
 
 
-interesting_classes = ['BUC: Lower Body Strength', 'BUC: Olympic Weightlifting', 'BUC: Olympic Weightlifting - Advanced']
+interesting_classes = ['BUC: Lower Body Strength', 'BUC: Olympic Weightlifting', 'BUC: Olympic Weightlifting - Advanced', 'EF CrossFit: Olympic Lifting']
 time_filter = 14
 day_filter = [0]
 saved_classes = {}
-# EF: 718
-# BUC: 952
+studio_list = ['718', '952']
 env = dotenv_values('.env')
 
-def login(email=env['BRUCE_EMAIL'], password=env['BRUCE_PASS']):
+def login(email=env['BRUCE_EMAIL'], password=env['BRUCE_PASS']) -> str:
     url = "https://api.bruce.app/v32/session"
 
     data = {
@@ -24,11 +23,11 @@ def login(email=env['BRUCE_EMAIL'], password=env['BRUCE_PASS']):
 
     response = requests.request("POST", url, json=data)
 
-    assert response.ok, print(f'{datetime.now.strftime("%H:%m")} Error in login', response.status_code, response.text)
+    assert response.ok, print(f'{now}: Error in login', response.status_code, response.text)
 
     return response.json()['session']['access_token']
 
-def book(class_id, token):
+def book(class_id:str, token:str) -> requests.Response:
     url = "https://api.bruce.app/v32/booking"
 
     data = {
@@ -44,7 +43,7 @@ def book(class_id, token):
 
     return response
 
-def get_classes(studio_id = '952'):
+def get_classes(studio_id: str) -> list:
     url = "https://api.bruce.app/v32/class"
 
     data = {"studio_id":studio_id,"start_time_after":datetime.now().strftime('%Y-%m-%dT00:00:00Z')}
@@ -56,8 +55,10 @@ def get_classes(studio_id = '952'):
     return response.json()['classes']
 
 
-def process_classes(class_list,saved_classes):
+def process_classes(class_list: list,saved_classes: list):
     new_class = False
+    class_title = None
+    class_time = None
     for klass in class_list:
         try:
             assert klass['id'] not in saved_classes
@@ -81,9 +82,11 @@ def process_classes(class_list,saved_classes):
                                 'start_time': start_time.strftime('%A, %d %b at %H:%M'),
                                 'saved': False}
             new_class = True
+            class_title = klass['title']
+            class_time = start_time.strftime('%A, %d %b at %H:%M') #Not working
         except AssertionError:
             pass
-    return saved_classes, new_class
+    return saved_classes, new_class, class_title, class_time
 
 
 def create_db():
@@ -102,7 +105,7 @@ def create_db():
     db.close()
 
 
-def insert_db(saved_classes):
+def insert_db(saved_classes: dict):
     db = sqlite3.connect('db.sqlite3')
     cursor = db.cursor()
     for class_id in saved_classes:
@@ -135,7 +138,7 @@ def get_db():
 
     return result
 
-def mail(body):
+def mail(body:str):
     server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
     server.ehlo()
     server.login('martin@sjoborg.org', env['EMAIL_PASS'])
@@ -147,22 +150,31 @@ if __name__ == '__main__':
     create_db()
 
     while True:
-        classes = get_classes()
+        dt = datetime.now()
+        seconds_until_midnight = ((24 - dt.hour - 1) * 60 * 60) + ((60 - dt.minute - 1) * 60) + (60 - dt.second)
+        now = datetime.now().strftime('%H:%M')
         
-        saved_classes, new_class = process_classes(classes, saved_classes)
+        if now >= '23:59' and now <= '00:01':
+            for studio in studio_list:
+                classes = get_classes(studio)
+                saved_classes, new_class, class_title, class_time = process_classes(classes, saved_classes)
 
-        if new_class:
-            saved_classes = insert_db(saved_classes)
-            new_class = False
+                for klass in saved_classes:
+                    token = login()
+                    response = book(klass, token)
+                    if 'error' not in response.json().keys():
+                        message = f'Booked {class_title} at {class_time}'
+                        print(message)
+                        body = f'''\
+From: martin@sjoborg.org
+Subject: {message}'''
+                        mail(body)
 
-            print(get_db())
-        sleep(60)
+                if new_class:
+                    saved_classes = insert_db(saved_classes)
+                    new_class = False
+                
+                sleep(2)
 
-        for klass in saved_classes:
-            print(klass)
-            token = login()
-            response = book(klass, token)
-            print(datetime.now().strftime('%H:%m')+': ', response.json())
-            if response.ok():
-                mail(response.json())
-            
+        else:
+            sleep(seconds_until_midnight - 30)
