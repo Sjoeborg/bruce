@@ -177,4 +177,5 @@ Subject: {message}'''
                 sleep(2)
 
         else:
-            sleep(seconds_until_midnight - 30)
+            if seconds_until_midnight > 30:
+                sleep(seconds_until_midnight - 30)
