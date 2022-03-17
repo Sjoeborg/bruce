@@ -6,7 +6,7 @@ from dotenv import dotenv_values
 import smtplib
 
 
-interesting_classes = ['BUC: Lower Body Strength', 'BUC: Olympic Weightlifting', 'BUC: Olympic Weightlifting - Advanced', 'EF CrossFit: Olympic Lifting']
+interesting_classes = ['BUC: Olympic Weightlifting', 'BUC: Olympic Weightlifting - Advanced', 'EF CrossFit: Olympic Lifting']
 time_filter = 14
 day_filter = [0]
 saved_classes = {}
@@ -155,11 +155,13 @@ if __name__ == '__main__':
         now = datetime.now().strftime('%H:%M')
         
         if now >= '23:59' and now <= '00:01':
+            print(f'Time is {now}, checking classes')
             for studio in studio_list:
                 classes = get_classes(studio)
                 saved_classes, new_class, class_title, class_time = process_classes(classes, saved_classes)
 
                 for klass in saved_classes:
+                    print(f'Found {klass}, booking...')
                     token = login()
                     response = book(klass, token)
                     if 'error' not in response.json().keys():
@@ -174,8 +176,9 @@ Subject: {message}'''
                     saved_classes = insert_db(saved_classes)
                     new_class = False
                 
-                sleep(2)
+            sleep(2)
 
         else:
             if seconds_until_midnight > 30:
+                print(f'Time is {now}, sleeping {seconds_until_midnight} seconds')
                 sleep(seconds_until_midnight - 30)
