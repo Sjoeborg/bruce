@@ -1,9 +1,12 @@
 import requests
 from datetime import datetime, timedelta
 import sqlite3
-from time import sleep, time
+from time import sleep
 from dotenv import dotenv_values
 import smtplib
+import logging
+
+logging.basicConfig(filename='info.log', level = logging.INFO)
 
 
 interesting_classes = ['BUC: Olympic Weightlifting', 'BUC: Olympic Weightlifting - Advanced', 'EF CrossFit: Olympic Lifting']
@@ -23,7 +26,7 @@ def login(email=env['BRUCE_EMAIL'], password=env['BRUCE_PASS']) -> str:
 
     response = requests.request("POST", url, json=data)
 
-    assert response.ok, print(f'{now}: Error in login', response.status_code, response.text)
+    assert response.ok, logging.critical(f'{now}: Error in login', response.status_code, response.text)
 
     return response.json()['session']['access_token']
 
@@ -50,7 +53,7 @@ def get_classes(studio_id: str) -> list:
 
     response = requests.request("GET", url, params=data)
 
-    assert response.ok, print('Error in get_classes', response.status_code, response.text)
+    assert response.ok, logging.critical('Error in get_classes', response.status_code, response.text)
 
     return response.json()['classes']
 
@@ -161,7 +164,7 @@ if __name__ == '__main__':
                 saved_classes, new_class, class_title, class_time = process_classes(classes, saved_classes)
 
                 for klass in saved_classes:
-                    print(f'Found {klass}, booking...')
+                    logging.info(f'Found {klass}, booking...')
                     token = login()
                     response = book(klass, token)
                     if 'error' not in response.json().keys():
@@ -172,13 +175,13 @@ From: martin@sjoborg.org
 Subject: {message}'''
                         mail(body)
 
-                if new_class:
-                    saved_classes = insert_db(saved_classes)
-                    new_class = False
+                        if new_class:
+                            saved_classes = insert_db(saved_classes)
+                            new_class = False
                 
             sleep(2)
 
         else:
             if seconds_until_midnight > 30:
-                print(f'Time is {now}, sleeping {seconds_until_midnight} seconds')
+                logging.info(f'Time is {now}, sleeping {seconds_until_midnight} seconds')
                 sleep(seconds_until_midnight - 30)
