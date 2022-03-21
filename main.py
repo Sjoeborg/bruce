@@ -149,7 +149,7 @@ def mail(body:str):
     server.close()
 
 
-if __name__ != '__main__':
+if __name__ == '__main__':
     create_db()
 
     while True:
@@ -157,7 +157,7 @@ if __name__ != '__main__':
         seconds_until_midnight = ((24 - dt.hour - 1) * 60 * 60) + ((60 - dt.minute - 1) * 60) + (60 - dt.second)
         now = datetime.now().strftime('%H:%M')
         
-        while now >= '10:59' or now <= '00:01':
+        while now >= '19:59' or now <= '00:01':
             token = login()
             for studio in studio_list:
                 classes = get_classes(studio)
@@ -184,4 +184,3 @@ Subject: {message}'''
         if seconds_until_midnight > 30:
             logging.info(f'Time is {now}, sleeping until {(dt + timedelta(seconds=seconds_until_midnight - 30)).strftime("%H:%M")}')
             sleep(seconds_until_midnight - 30)
-print(get_classes(studio_list[1]))
