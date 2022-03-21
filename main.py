@@ -180,8 +180,8 @@ Subject: {message}'''
                             new_class = False
                 
             sleep(2)
+            now = datetime.now().strftime('%H:%M')
 
-        else:
-            if seconds_until_midnight > 30:
-                logging.info(f'Time is {now}, sleeping until {(dt + timedelta(seconds=seconds_until_midnight - 30)).strftime("%H:%M")}')
-                sleep(seconds_until_midnight - 30)
+        if seconds_until_midnight > 30:
+            logging.info(f'Time is {now}, sleeping until {(dt + timedelta(seconds=seconds_until_midnight - 30)).strftime("%H:%M")}')
+            sleep(seconds_until_midnight - 30)
