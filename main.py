@@ -157,7 +157,7 @@ if __name__ == '__main__':
         seconds_until_midnight = ((24 - dt.hour - 1) * 60 * 60) + ((60 - dt.minute - 1) * 60) + (60 - dt.second)
         now = datetime.now().strftime('%H:%M')
         
-        if now >= '23:59' or now <= '00:01':
+        while now >= '23:59' or now <= '00:01':
             #print(f'Time is {now}, checking classes')
             for studio in studio_list:
                 classes = get_classes(studio)
