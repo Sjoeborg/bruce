@@ -183,5 +183,5 @@ Subject: {message}'''
 
         else:
             if seconds_until_midnight > 30:
-                logging.info(f'Time is {now}, sleeping {seconds_until_midnight} seconds')
+                logging.info(f'Time is {now}, sleeping until {now + timedelta(seconds=seconds_until_midnight - 30)}')
                 sleep(seconds_until_midnight - 30)
