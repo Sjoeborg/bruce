@@ -9,11 +9,11 @@ import logging
 logging.basicConfig(filename='info.log', level = logging.INFO)
 
 
-interesting_classes = ['BUC: Olympic Weightlifting', 'BUC: Olympic Weightlifting - Advanced', 'EF CrossFit: Olympic Lifting']
+interesting_classes = ['BUC: Olympic Weightlifting', 'BUC: Olympic Weightlifting - Advanced']
 time_filter = 14
 day_filter = [0]
 saved_classes = {}
-studio_list = ['718', '952']
+studio_list = ['952']
 env = dotenv_values('.env')
 
 def login(email=env['BRUCE_EMAIL'], password=env['BRUCE_PASS']) -> str:
