@@ -2,10 +2,9 @@ import requests
 from datetime import datetime, timedelta
 from time import sleep
 from dotenv import dotenv_values
+import sys
 import smtplib
 import logging
-
-logging.basicConfig(filename="info.log", level=logging.INFO)
 
 
 interesting_classes = [
@@ -17,7 +16,7 @@ day_filter = [0]
 saved_classes = {}
 studio_list = ["952"]
 env = dotenv_values(".env")
-DEBUG = False
+DEBUG = True
 seconds_before_midnight = 30 if not DEBUG else 60 * 60 * 23
 
 
@@ -119,6 +118,11 @@ def mail(body: str):
 
 
 if __name__ == "__main__":
+    if DEBUG:
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    else:
+        logging.basicConfig(filename="info.log", level=logging.INFO)
+    token = login()
     while True:
         dt = datetime.now()
         seconds_until_midnight = (
@@ -152,9 +156,9 @@ Subject: {message}"""
             sleep(0.1)
             now = datetime.now().strftime("%H:%M")
 
-        if seconds_until_midnight > seconds_before_midnight:
+        if seconds_until_midnight > seconds_before_midnight or DEBUG:
             logging.info(
                 f'Time is {now}, sleeping until {(dt + timedelta(seconds=seconds_until_midnight - seconds_before_midnight)).strftime("%H:%M")}'
             )
-            # sleep(seconds_until_midnight - seconds_before_midnight)
-            token = login()
+            sleep(seconds_until_midnight - seconds_before_midnight)
+        token = login()
