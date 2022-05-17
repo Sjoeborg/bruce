@@ -1,6 +1,5 @@
 import requests
 from datetime import datetime, timedelta
-import sqlite3
 from time import sleep
 from dotenv import dotenv_values
 import smtplib
@@ -18,9 +17,11 @@ day_filter = [0]
 saved_classes = {}
 studio_list = ["952"]
 env = dotenv_values(".env")
+DEBUG = False
+seconds_before_midnight = 30 if not DEBUG else 60 * 60 * 23
 
 
-def login(email=env["BRUCE_EMAIL"], password=env["BRUCE_PASS"]) -> str:
+def login(email: str = env["BRUCE_EMAIL"], password: str = env["BRUCE_PASS"]) -> str:
     url = "https://api.bruce.app/v32/session"
 
     data = {"email": email, "password": password}
@@ -70,14 +71,12 @@ def get_classes(studio_id: str) -> list:
 
 def process_classes(class_list: list, saved_classes: list):
     new_class = False
-    class_title = None
-    class_time = None
     for klass in class_list:
         try:
             assert klass["id"] not in saved_classes
             assert klass["title"] in interesting_classes
             # assert klass['price'] is None
-            assert klass["available_spots"] > 0
+            assert klass["available_spots"] > 0 or DEBUG
             assert klass["tier_level"] <= 2
             assert klass["deleted"] is False
 
@@ -100,66 +99,15 @@ def process_classes(class_list: list, saved_classes: list):
                 "saved": False,
             }
             new_class = True
-            class_title = klass["title"]
-            class_time = start_time.strftime("%A, %d %b at %H:%M")  # Not working
         except AssertionError:
             pass
+    try:
+        class_title = saved_classes[klass["id"]]["title"]
+        class_time = saved_classes[klass["id"]]["start_time"]
+    except KeyError:
+        class_title = None
+        class_time = None
     return saved_classes, new_class, class_title, class_time
-
-
-def create_db():
-    db = sqlite3.connect("db.sqlite3")
-
-    cursor = db.cursor()
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS classes(
-            id INTEGER PRIMARY KEY,
-            created_at TEXT,
-            title TEXT,
-            start_time TEXT
-        )
-    """
-    )
-    db.commit()
-    db.close()
-
-
-def insert_db(saved_classes: dict):
-    db = sqlite3.connect("db.sqlite3")
-    cursor = db.cursor()
-    for class_id in saved_classes:
-        if saved_classes[class_id]["saved"] is False:
-            try:
-                cursor.execute(
-                    """INSERT INTO classes(id, created_at, title, start_time)
-                                VALUES(:id,:created_at, :title, :start_time)""",
-                    {
-                        "id": class_id,
-                        "created_at": saved_classes[class_id]["created_at"],
-                        "title": saved_classes[class_id]["title"],
-                        "start_time": saved_classes[class_id]["start_time"],
-                    },
-                )
-
-            except sqlite3.IntegrityError:
-                pass  # class already in DB.
-            saved_classes[class_id]["saved"] = True
-    db.commit()
-    db.close()
-    return saved_classes
-
-
-def get_db():
-    db = sqlite3.connect("db.sqlite3")
-    cursor = db.cursor()
-    cursor.execute("""select * from classes""")
-
-    result = cursor.fetchall()
-
-    db.close()
-
-    return result
 
 
 def mail(body: str):
@@ -171,8 +119,6 @@ def mail(body: str):
 
 
 if __name__ == "__main__":
-    create_db()
-
     while True:
         dt = datetime.now()
         seconds_until_midnight = (
@@ -182,8 +128,7 @@ if __name__ == "__main__":
         )
         now = datetime.now().strftime("%H:%M")
 
-        while now >= "23:59" or now <= "00:01":
-            token = login()
+        while (now >= "23:59" or now <= "00:01") or DEBUG is True:
             for studio in studio_list:
                 classes = get_classes(studio)
                 saved_classes, new_class, class_title, class_time = process_classes(
@@ -202,14 +147,14 @@ Subject: {message}"""
                         mail(body)
 
                         if new_class:
-                            saved_classes = insert_db(saved_classes)
                             new_class = False
 
             sleep(0.1)
             now = datetime.now().strftime("%H:%M")
 
-        if seconds_until_midnight > 30:
+        if seconds_until_midnight > seconds_before_midnight:
             logging.info(
-                f'Time is {now}, sleeping until {(dt + timedelta(seconds=seconds_until_midnight - 30)).strftime("%H:%M")}'
+                f'Time is {now}, sleeping until {(dt + timedelta(seconds=seconds_until_midnight - seconds_before_midnight)).strftime("%H:%M")}'
             )
-            sleep(seconds_until_midnight - 30)
+            # sleep(seconds_until_midnight - seconds_before_midnight)
+            token = login()
